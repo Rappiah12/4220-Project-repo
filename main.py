@@ -4,7 +4,7 @@ from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 import folium
 from folium import plugins
-
+import networkx as nx
 
 
 
@@ -104,7 +104,7 @@ for _, row in aurora_checkins.iterrows():
         fill_opacity=0.6
     ).add_to(m)
 
-# Save the map to an HTML file without additional layers
+# Save the map to an HTML file 
 m.save("aurora_checkins_map.html")
 
 print("Map saved as 'aurora_checkins_map.html'. Open it in a web browser to view the map.")
@@ -120,4 +120,56 @@ print("Map saved as 'aurora_checkins_map.html'. Open it in a web browser to view
 
 
 
+# This will group users by the clusters they checked into
+user_clusters = aurora_checkins.groupby('cluster')['user'].apply(set).to_dict()
 
+
+# Initialize graph
+G = nx.Graph()
+
+# This will add edges between users who visited the same cluster
+for cluster, users in user_clusters.items():
+    users = list(users)  
+    for i in range(len(users)):
+        for j in range(i + 1, len(users)):
+            if G.has_edge(users[i], users[j]):
+                # Increase weight if edge already exist
+                G[users[i]][users[j]]['weight'] += 1
+            else:
+                # Create edge with weight of 1
+                G.add_edge(users[i], users[j], weight=1)
+
+
+print(f"Number of nodes: {G.number_of_nodes()}")
+print(f"Number of edges: {G.number_of_edges()}")
+
+
+# Calculate/Print Network Properties
+print(f"Network density: {nx.density(G)}")
+print(f"Average clustering coefficient: {nx.average_clustering(G)}")
+
+# Degree centrality
+degree_centrality = nx.degree_centrality(G)
+
+# Creates a list of top users by centrality, helpful in showing key players 
+# in the network
+top_users = sorted(degree_centrality.items(), key=lambda x: x[1], reverse=True)[:5]
+print(f"Top 5 users by degree centrality: {top_users}")
+
+# Print network graph
+plt.figure(figsize=(12, 8))
+pos = nx.spring_layout(G, seed=42)  
+nx.draw_networkx_nodes(G, pos, node_size=50, node_color='blue')
+nx.draw_networkx_edges(G, pos, alpha=0.3)
+plt.title("User Location Network")
+plt.show()
+
+
+
+#
+#
+#
+### Our network graph with edges is now complete, showing graph properties 
+#
+#
+#
